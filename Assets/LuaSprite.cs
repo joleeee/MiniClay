@@ -5,6 +5,12 @@ using UnityEngine;
 public class LuaSprite : MonoBehaviour {
 
     public Sprite sprite;
+    public int x, y;
+    
+    public LuaSprite(Sprite sprite, int x, int y)
+    {
+
+    }
 
 	// Use this for initialization
 	void Start () {
