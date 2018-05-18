@@ -16,46 +16,32 @@ public class LuaManager : MonoBehaviour {
 	void Start () {
         spriteQueue = new List<LuaSprite>();
         script = new Script();
-        script.DoString(File.ReadAllText(Application.dataPath + "/script.lua"));
+        script.DoString(File.ReadAllText(Application.streamingAssetsPath + "/script.lua"));
         script.Globals["spr"] = (Action<int, int>)Spr; //Action if a void
-        script.Globals["GetInput"] = (Func<string, float>)GetInput; //Func if returning a value
-        script.Globals["time"] = (Func<float>)DeltaTime;
+        script.Globals["time"] = (Func<float>)DeltaTime; //Func if returning a value
         script.Globals["restart"] = (Action)LoadScript;
-        script.Globals["r"] = (Func<bool>)GetR;
-
+        script.Globals["btn"] = (Func<int,bool>)GetKey;
+        script.Globals["print"] = (Action<string>)print;
     }
 
 	
 	// Update is called once per frame
 	void Update () {
-        spriteQueue.Clear();
-        if (loadScript)
+        if (Input.GetKeyDown(KeyCode.LeftControl) && Input.GetKey(KeyCode.R))
         {
-            loadScript = false;
-            script = new Script();
-            script.DoString(File.ReadAllText(Application.dataPath + "/script.lua"));
-            script.Globals["spr"] = (Action<int, int>)Spr; //Action if a void
-            script.Globals["GetInput"] = (Func<string, float>)GetInput; //Func if returning a value
-            script.Globals["time"] = (Func<float>)DeltaTime;
+            LoadScript();
         }
         
         script.Call(script.Globals["Update"], Time.deltaTime);
 	}
 
-    bool GetR()
-    {
-        return Input.GetKeyDown(KeyCode.R);
-    }
-
-    bool loadScript = false;
     void LoadScript()
     {
-        loadScript = true;
         script = new Script();
         script.DoString(File.ReadAllText(Application.dataPath + "/script.lua"));
         script.Globals["spr"] = (Action<int, int>)Spr; //Action if a void
-        script.Globals["GetInput"] = (Func<string, float>)GetInput; //Func if returning a value
         script.Globals["time"] = (Func<float>)DeltaTime;
+        script.Globals["btn"] = (Func<int, bool>)GetKey;
     }
 
     float DeltaTime()
@@ -68,16 +54,30 @@ public class LuaManager : MonoBehaviour {
         spriteQueue.Add(new LuaSprite(texture, x, y));
     }
 
-    float GetInput(string axis)
+    bool GetKey(int key)
     {
-        return Input.GetAxisRaw(axis);
+        switch (key)
+        {
+            case 0:
+                return Input.GetKey(KeyCode.UpArrow);
+            case 1:
+                return Input.GetKey(KeyCode.DownArrow);
+            case 2:
+                return Input.GetKey(KeyCode.LeftArrow);
+            case 3:
+                return Input.GetKey(KeyCode.RightArrow);
+            default:
+                return false;
+        }
     }
 
-	void OnRenderObject(){
+	void OnGUI(){
+        if (!Event.current.type.Equals(EventType.Repaint))
+            return;
         foreach (var sprite in spriteQueue)
         {
             sprite.Draw();
         }
-        
-	}
+        spriteQueue.Clear();
+    }
 }
