@@ -19,7 +19,7 @@ public class LuaSprite/* : MonoBehaviour*/ {
     }
 
 	public void Draw(){
-        screenRect = new Rect(x, y, texture.width, texture.height);
+        screenRect = new Rect(x * LuaManager.scale.x, y * LuaManager.scale.y, texture.width * LuaManager.scale.x, texture.height * LuaManager.scale.y);
         Graphics.DrawTexture(screenRect, texture);
 	}
 	
