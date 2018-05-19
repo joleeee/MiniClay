@@ -6,6 +6,8 @@ using MoonSharp.Interpreter;
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
+using UnityEditor;
 
 public class LuaManager : MonoBehaviour {
     public Texture2D texture;
@@ -14,6 +16,8 @@ public class LuaManager : MonoBehaviour {
     public Material mat;
     public Texture2D icons;
     public Texture2D cropped;
+
+    RenderTexture rend;
 
     string text = "Hello There!";
     string displayText;
@@ -38,8 +42,16 @@ public class LuaManager : MonoBehaviour {
         luaScript = File.ReadAllText(Application.streamingAssetsPath + "/script.lua");
         LoadScript(luaScript);
         //Application.targetFrameRate = 60;
-        text = File.ReadAllText(Application.streamingAssetsPath + "/script.lua");     
-        
+        text = File.ReadAllText(Application.streamingAssetsPath + "/script.lua");
+
+        /*EditorUtility.DisplayDialog("Load script", "Please load a lua script.", "OK");
+
+        string path = EditorUtility.OpenFilePanel("Load script", Application.streamingAssetsPath, "lua");
+        if (path.Length != 0)
+        {
+            text = File.ReadAllText(path);
+        }*/
+
         using (var reader = new StreamReader(Application.streamingAssetsPath + "/colors.csv"))
         {
             while (!reader.EndOfStream)
@@ -60,21 +72,45 @@ public class LuaManager : MonoBehaviour {
     
 	void Update () {
 
-        if (Input.GetKey(KeyCode.Escape))
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
-            selectedIcon = Icons.Play;
-            LoadScript(text);
-            print("Loaded script from editor!");
+            if(selectedIcon == Icons.Play)
+            {
+                selectedIcon = Icons.Code;
+            }
+            else
+            {
+                selectedIcon = Icons.Play;
+                LoadScript(text);
+            }
+        }else if (Input.GetKeyDown(KeyCode.F1))
+        {
+            selectedIcon = Icons.Code;
+        }else if (Input.GetKeyDown(KeyCode.F2))
+        {
+            selectedIcon = Icons.Draw;
+        }else if (Input.GetKeyDown(KeyCode.F3))
+        {
+            selectedIcon = Icons.Level;
+        }
+        else if (Input.GetKeyDown(KeyCode.F4))
+        {
+            selectedIcon = Icons.Sound;
         }
 
         switch (selectedIcon)
         {
             case Icons.Play:
-                script.Call(script.Globals["Update"]);
+                script.Call(script.Globals["update"]);
                 break;
             case Icons.Code:
-                mouseIndex += (int)Input.GetAxisRaw("Horizontal");
+                if (Input.GetKeyDown(KeyCode.LeftArrow))
+                    mouseIndex--;
+                if (Input.GetKeyDown(KeyCode.RightAlt))
+                    mouseIndex++;
                 Mathf.Clamp(mouseIndex, 0, Mathf.Infinity);
+
+                
 
                 foreach (char c in Input.inputString)
                 {
@@ -95,6 +131,31 @@ public class LuaManager : MonoBehaviour {
                         mouseIndex++;
                     }
                 }
+                if (Input.GetMouseButton(0))
+                {
+                    int mouseLine = Mathf.FloorToInt((HEIGHT * scale.y - Input.mousePosition.y - 7) / 6);
+                    int mouseCol = Mathf.RoundToInt(Input.mousePosition.x * scale.x / 4);
+                    print("col" + mouseCol + "lin" + mouseLine);
+
+                    int index = 0;
+                    string[] lines = Regex.Split(text, "\r\n|\r|\n");
+                    for (int y = 0; y < lines.Length; y++)
+                    {
+                        string line = lines[y];
+                        for (int x = 0; x < line.Length; x++)
+                        {
+                            if (mouseLine == y && mouseCol == x)
+                            {
+                                print("IT WORKS!");
+                                mouseIndex = index;
+                            }
+                            index++;
+                        }
+                        index += 2;
+                    }
+                }
+                
+
                 displayText = text.Insert(mouseIndex, "_");
                 break;
             case Icons.Draw:
@@ -118,6 +179,7 @@ public class LuaManager : MonoBehaviour {
 
     void LoadScript(string scriptString)
     {
+        scriptString = scriptString.ToLower();
         spriteQueue = new List<LuaSprite>();
         script = new Script();
         script.DoString(scriptString);
@@ -162,28 +224,32 @@ public class LuaManager : MonoBehaviour {
 
         #region UI
         Draw(white, new Rect(0, 0, WIDTH, HEIGHT), new Rect(0, 0, white.width, white.height), colors[0]);
-        Rect sourceRect = new Rect(0, 7, icons.width/5, icons.height / 2);
-        Rect screenRect = new Rect(0, 0, icons.width/5, icons.height / 2);
-        screenRect.x *= scale.x;
-        screenRect.y *= scale.y;
 
-        for (int i = 0; i < 5; i++)
+        if (selectedIcon != Icons.Play)
         {
-            if (Input.mousePosition.x > sourceRect.x && Input.mousePosition.x < sourceRect.x + sourceRect.width && Input.GetMouseButton(0) || (int) selectedIcon == i)
-            {
-                selectedIcon = (Icons)i;
-                Rect r = new Rect(sourceRect);
-                r.y -= 7;
-                Draw(icons, screenRect, r, Color.white);
-            }
-            else
-            {
-                Draw(icons, screenRect, sourceRect, Color.white);
-            }
+            Rect sourceRect = new Rect(0, 7 * 8, icons.width / 5, icons.height / 2);
+            Rect screenRect = new Rect(0, 0, icons.width / 5 / 8, icons.height / 2 / 8);
+            screenRect.x *= scale.x;
+            screenRect.y *= scale.y;
 
-            
-            sourceRect.x += 7;
-            screenRect.x += 7;
+            for (int i = 0; i < 5; i++)
+            {
+                if (HEIGHT * scale.y - Input.mousePosition.y < sourceRect.y && Input.mousePosition.x > sourceRect.x && Input.mousePosition.x < sourceRect.x + sourceRect.width && Input.GetMouseButton(0) || (int)selectedIcon == i)
+                {
+                    selectedIcon = (Icons)i;
+                    Rect r = new Rect(sourceRect);
+                    r.y -= 7 * 8;
+                    Draw(icons, screenRect, r, Color.white);
+                }
+                else
+                {
+                    Draw(icons, screenRect, sourceRect, Color.white);
+                }
+
+
+                sourceRect.x += 7 * 8;
+                screenRect.x += 7;
+            }
         }
         #endregion
 
@@ -236,7 +302,7 @@ public class LuaManager : MonoBehaviour {
         }
     }
 
-    char[] alpha = "abcdefghijklmnopqrstuvwxyz1234567890?!()[]{}.,:;-_".ToCharArray();
+    char[] alpha = "abcdefghijklmnopqrstuvwxyz1234567890?!()[]{}.,:;-_+=".ToCharArray();
     public Texture2D alphaTexture;
     public void DrawChar(int x, int y, char c)
     {
@@ -245,7 +311,7 @@ public class LuaManager : MonoBehaviour {
             char letter = alpha[i];
             if (c == letter)
             {
-                Draw(alphaTexture, new Rect(x, y, 3, 5), new Rect(i * 3, 0, 3, 5), Color.white);
+                Draw(alphaTexture, new Rect(x, y, 3, 5), new Rect(i * 3 * 8, 0, 3*8, 5*8), colors[3]);
             }
         }
     }
