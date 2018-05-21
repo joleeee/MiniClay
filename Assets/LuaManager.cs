@@ -118,6 +118,8 @@ public class LuaManager : MonoBehaviour {
         string text = InputText.text;
         text = ColorTextReplace(text, "=", rawColors[4]);
         text = ColorTextReplace(text, "FUNCTION ", rawColors[5]);
+        text = ColorTextReplace(text, "BTN ", rawColors[5]);
+        //text = ColorTextReplace(text, "FUNCTION ", rawColors[5]);
         text = ColorTextReplace(text, "(", rawColors[6]);
         text = ColorTextReplace(text, ")", rawColors[6]);
         TextOverlay.text = text;
@@ -386,9 +388,7 @@ public class LuaManager : MonoBehaviour {
         LuaSprite spr = go.GetComponent<LuaSprite>();
         spr.Init(tex, new Vector2(x, y));
         Sprites.Add(go);
-        //Instantiate(go);
         return spr;
-        //spriteQueue.Add(new LuaSprite(tex, x, y));
     }
 
     void Cls()
