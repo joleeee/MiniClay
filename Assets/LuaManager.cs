@@ -21,27 +21,42 @@ public class LuaManager : MonoBehaviour {
     int xTile = 0;
     int yTile = 0;
 
+    string realText;
+
+    Color drawColor;
+
     Text TextBox;
+    Text TextOverlay;
     InputField InputField;
     DrawableImage spriteImageScript;
     RawImage spriteImage;
     DrawableImage spriteMapScript;
-    RawImage spriteMap;
-
+    GameObject UIGO;
+    GameObject DrawGO;
+    GameObject CodeGO;
+    GameObject AudioGO;
+    GameObject LevelGO;
+    RawImage ColorSelectorSprite;
+    RawImage AudioSprite;
+    DrawableImage AudioSpriteScript;
+    Text InputText;
     public static LuaManager Main;
     string luaScript;
 
     public static int WIDTH = 128;
     public static int HEIGHT = 72;
 
-    public Icon icon = Icon.Code;
+    public Icon icon = Icon.Draw;
 
     public static List<LuaSprite> spriteQueue;
 
     public static Vector2 scale;
 
+    public List<GameObject> Sprites = new List<GameObject>();
+
     Script script;
     List<Color> colors = new List<Color>();
+    List<String> rawColors = new List<string>();
 
     // Use this for initialization
     void Start() {
@@ -49,30 +64,63 @@ public class LuaManager : MonoBehaviour {
         TextBox = GameObject.Find("ScriptText").GetComponent<Text>();
         InputField = GameObject.Find("ScriptField").GetComponent<InputField>();
         InputField.text = File.ReadAllText(Application.streamingAssetsPath + "/script.lua");
-        LoadScript(InputField.text);
-        //luaScript = File.ReadAllText(Application.streamingAssetsPath + "/script.lua");
-
-        /*List<Color> co = new List<Color>();
-        for (int i = 0; i < 64; i++)
-        {
-            co.Add(Color.cyan);
-        }
-        spriteImage = GameObject.Find("SpriteImage").GetComponent<Image>();
-        spriteImage.sprite.texture.SetPixels(0, 0, 8, 8, co.ToArray());*/
+        TextOverlay = GameObject.Find("TextOverlay").GetComponent<Text>();
+        ColorSelectorSprite = GameObject.Find("ColorSelector").GetComponent<RawImage>();
+        UIGO = GameObject.Find("UICat");
+        DrawGO = GameObject.Find("DrawCat");
+        CodeGO = GameObject.Find("CodeCat");
+        AudioGO = GameObject.Find("AudioCat");
+        LevelGO = GameObject.Find("LevelCat");
+        InputText = GameObject.Find("ScriptText").GetComponent<Text>();
         spriteImage = GameObject.Find("SpriteImage").GetComponent<RawImage>();
         spriteImageScript = GameObject.Find("SpriteImage").GetComponent<DrawableImage>();
         spriteMapScript = GameObject.Find("AllSprites").GetComponent<DrawableImage>();
+        spriteMapScript.Init();
+        AudioSpriteScript = GameObject.Find("AudioImage").GetComponent<DrawableImage>();
+        AudioSprite = GameObject.Find("AudioImage").GetComponent<RawImage>();
 
         ReadAllColors();
         ColorBlock c = InputField.colors;
         c.normalColor = colors[0];
         c.highlightedColor = colors[0];
+        InputField.selectionColor = colors[3];
         InputField.colors = c;
         TextBox.GetComponent<Text>().color = colors[3];
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 60;
+
+        LoadScript(InputField.text);
+
+        realText = InputField.text;
+        Color[] cs = new Color[6];
+        Texture2D tex = new Texture2D(3, 2);
+        for (int i = 0; i < 6; i++)
+        {
+            cs[i] = new Color(UnityEngine.Random.value, UnityEngine.Random.value, UnityEngine.Random.value);
+            //print(cs[i].r);
+        }
+        tex.SetPixels(cs);
+        tex.filterMode = FilterMode.Point;
+        tex.Apply();
+        ColorSelectorSprite.GetComponent<DrawableImage>().Init();
+        ColorSelectorSprite.texture = tex;
+    }
+
+    string ColorTextReplace(string text, string textToReplace, string color)
+    {
+        text = text.Replace(textToReplace, "<color=#" + color + "ff>" + textToReplace + "</color>");
+        //print("<color=#" + color + "ff>" + textToReplace + "</color>");
+        return text;
     }
     
 	void Update () {
         InputField.text = InputField.text.ToUpper();
+        string text = InputText.text;
+        text = ColorTextReplace(text, "=", rawColors[4]);
+        text = ColorTextReplace(text, "FUNCTION ", rawColors[5]);
+        text = ColorTextReplace(text, "(", rawColors[6]);
+        text = ColorTextReplace(text, ")", rawColors[6]);
+        TextOverlay.text = text;
 
         if (Input.GetKeyDown(KeyCode.Escape))
         {
@@ -98,26 +146,30 @@ public class LuaManager : MonoBehaviour {
         {
             icon = Icon.Sound;
         }
-        bool toSet = false;
-        bool spriteImageActive = false;
+        bool Code = false;
+        bool Draw = false;
+        bool ui = true;
+        bool Level = false;
+        bool Audio = false;
+        bool clearGOs = true;
         switch (icon)
         {
             case Icon.Play:
                 script.Call(script.Globals["update"]);
-                toSet = false;
+                clearGOs = false;
+                ui = false;
                 break;
             case Icon.Code:
-                toSet = true;
+                Code = true;
                 break;
             case Icon.Draw:
-                spriteImageActive = true;
-                
-                
+                Draw = true;
+
+                #region draw
                 //SpriteMap\\
                 if (Input.GetMouseButton(0))
                 {
                     Vector2 mouse = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                    #region getSpriteBlock
                     Vector2 sbPosition = spriteMapScript.Image.rectTransform.anchoredPosition;
                     Vector2 sbDimentions = spriteMapScript.Image.rectTransform.sizeDelta;
                     sbPosition.x -= sbDimentions.x / 2;
@@ -146,24 +198,79 @@ public class LuaManager : MonoBehaviour {
                         Vector2 pixel = mouseRel / (spriteImage.rectTransform.sizeDelta / spriteImageScript.pixelDimentions);
                         pixel.x += xTile * 8;
                         pixel.y += yTile * 8;
-                        spriteMapScript.Draw(pixel, Color.green);
+                        spriteMapScript.Draw(pixel, drawColor);
                     }
                     Color[] c;
                     spriteImageScript.SetColors(c = ((Texture2D)spriteMapScript.Image.texture).GetPixels(xTile * 8, yTile * 8, 8, 8));
-                }
+                    //SpriteImage\\
 
+                    //ColorSelector\\
+                    Vector2 csPosition = ColorSelectorSprite.rectTransform.anchoredPosition;
+                    Vector2 csDimentions = ColorSelectorSprite.rectTransform.sizeDelta;
+                    csPosition.x -= csDimentions.x / 2;
+                    csPosition.y -= csDimentions.y / 2;
+
+                    if (mouse.x > csPosition.x && mouse.x < csPosition.x + csDimentions.x && mouse.y > csPosition.y && mouse.y < csPosition.y + csDimentions.y)
+                    {
+                        Vector2 mouseRel = mouse - csPosition;
+                        Vector2 pixel = mouseRel / (ColorSelectorSprite.rectTransform.sizeDelta / ColorSelectorSprite.GetComponent<DrawableImage>().pixelDimentions);
+                        drawColor = (((Texture2D) ColorSelectorSprite.texture).GetPixel((int)pixel.x, (int)pixel.y));
+                        //print(pixel);
+                    }
+                    
+
+                    //ColorSelector\\
+                }
                 #endregion
+
                 break;
             case Icon.Level:
+                Level = true;
                 break;
             case Icon.Sound:
+                Audio = true;
+                if (Input.GetMouseButton(0))
+                {
+                    Vector2 mouse = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                    Vector2 position = AudioSprite.rectTransform.anchoredPosition;
+                    Vector2 dimentions = AudioSprite.rectTransform.sizeDelta;
+                    
+                    position.x -= dimentions.x / 2;
+                    position.y -= dimentions.y / 2;
+
+                    if (mouse.x > position.x && mouse.x < position.x + dimentions.x && mouse.y > position.y && mouse.y < position.y + dimentions.y)
+                    {
+                        Vector2 mouseRel = mouse - position;
+                        Vector2 pixel = mouseRel / (AudioSprite.rectTransform.sizeDelta / AudioSpriteScript.pixelDimentions);
+                        //print(pixel);
+
+                        for (int i = 0; i < AudioSpriteScript.pixelDimentions.y; i++)
+                        {
+                            AudioSpriteScript.Draw(new Vector2Int((int)pixel.x, i), colors[0]);
+                        }
+
+                        for (int i = 0; i < pixel.y; i++)
+                        {
+                            AudioSpriteScript.Draw(new Vector2Int((int)pixel.x, i), colors[4]);
+                        }
+
+                        /*drawColor = (((Texture2D)AudioSprite.texture).GetPixel((int)pixel.x, (int)pixel.y));
+                        print(pixel);*/
+                    }
+                }
                 break;
             default:
                 break;
         }
-
-        spriteImageScript.gameObject.SetActive(spriteImageActive);
-        InputField.gameObject.SetActive(toSet);
+        if (clearGOs)
+            ClearSprites();
+        DrawGO.SetActive(Draw);
+        UIGO.SetActive(ui);
+        CodeGO.SetActive(Code);
+        //InputField.gameObject.SetActive(Code);
+        LevelGO.SetActive(Level);
+        AudioGO.SetActive(Audio);
+        //Debug.LogError(1 / Time.deltaTime);
 
         
         //print(xCord + "." + yCord);
@@ -216,11 +323,11 @@ public class LuaManager : MonoBehaviour {
         switch (icon)
         {
             case Icon.Play:
-                foreach (var sprite in spriteQueue)
+                /*foreach (var sprite in spriteQueue)
                 {
                     sprite.Draw();
                 }
-                spriteQueue.Clear();
+                spriteQueue.Clear();*/
                 break;
             case Icon.Code:
                 break;
@@ -234,17 +341,32 @@ public class LuaManager : MonoBehaviour {
                 break;
         }
     }
+    void ClearSprites()
+    {
+        List<GameObject> newSprites = new List<GameObject>(Sprites);
+        for (int i = 0; i < Sprites.Count; i++)
+        {
+            Destroy(Sprites[i]);
+            Destroy(Sprites[i].gameObject);
+            newSprites.Remove(Sprites[i]);
+        }
+        Sprites = newSprites;
+    }
 
     void LoadScript(string scriptString)
     {
         spriteQueue = new List<LuaSprite>();
         script = new Script();
         script.DoString(scriptString.ToLower());
-        script.Globals["spr"] = (Action<int, int, int>)Spr; //Action if a void
+        script.Globals["spr"] = (Func<int, int, int, LuaSprite>)Spr; //Action if a void
         script.Globals["time"] = (Func<float>)DeltaTime; //Func if returning a value
         //script.Globals["restart"] = (Action)LoadScript;
         script.Globals["btn"] = (Func<int, bool>)GetKey;
         script.Globals["print"] = (Action<string>)print;
+        UserData.RegisterType<LuaSprite>();
+        UserData.RegisterType<Debug>();
+        ClearSprites();
+        script.Call(script.Globals["start"]);
     }
     #region luaFunctions
     float DeltaTime()
@@ -252,11 +374,21 @@ public class LuaManager : MonoBehaviour {
         return Time.deltaTime;
     }
 
-    void Spr(int id, int x, int y)
+    LuaSprite Spr(int id, int x, int y)
     {
+        print("spr called");
         Texture2D tex = new Texture2D(8, 8);
         tex.SetPixels(((Texture2D)spriteMapScript.Image.texture).GetPixels((id % 8) * 8, Mathf.FloorToInt(id/8)*8, 8, 8));
-        spriteQueue.Add(new LuaSprite(tex, x, y));
+        tex.filterMode = FilterMode.Point;
+        tex.Apply();
+        GameObject go = new GameObject();
+        go.AddComponent(typeof(LuaSprite));
+        LuaSprite spr = go.GetComponent<LuaSprite>();
+        spr.Init(tex, new Vector2(x, y));
+        Sprites.Add(go);
+        //Instantiate(go);
+        return spr;
+        //spriteQueue.Add(new LuaSprite(tex, x, y));
     }
 
     void Cls()
@@ -360,14 +492,16 @@ public class LuaManager : MonoBehaviour {
             while (!reader.EndOfStream)
             {
                 var line = reader.ReadLine();
-                var values = line.Split(',');
+                var values = line.Split(';');
                 float r, g, b;
                 int num = (int)long.Parse(values[1], NumberStyles.HexNumber);
                 r = (num & 0xFF0000) >> 16;
                 g = (num & 0xFF00) >> 8;
                 b = num & 0xFF;
 
+                //print(r + "." + g + "." + b);
                 colors.Add(new Color(r / 255f, g / 255f, b / 255f));
+                rawColors.Add(values[1]);
             }
         }
     }

@@ -13,8 +13,12 @@ public class DrawableImage : MonoBehaviour {
 
     public RawImage Image;
 
-    void Start()
+    public bool loaded;
+
+    public void Init()
     {
+        if (loaded)
+            return;
         Image = GetComponent<RawImage>();
         Texture2D t = new Texture2D(widthPixels, heightPixels, TextureFormat.RGBA32, false);
         Color[] c = new Color[widthPixels * heightPixels];
@@ -23,7 +27,7 @@ public class DrawableImage : MonoBehaviour {
         {
             if (colorStart)
             {
-                if(i % (widthPixels * 7) == 0)
+                if (i % (widthPixels * 7) == 0)
                     currentColor = new Color(Random.value, Random.value, Random.value);
                 c[i] = currentColor;
             }
@@ -37,6 +41,12 @@ public class DrawableImage : MonoBehaviour {
         t.Apply(false);
         Image.texture = t;
         Image.color = Color.white;
+        loaded = true;
+    }
+
+    void Start()
+    {
+        Init();
     }
 
     public void Draw(Vector2Int pixel, Color color)
